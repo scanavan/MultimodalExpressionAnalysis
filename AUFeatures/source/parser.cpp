@@ -4,11 +4,13 @@ std::mutex vectorLock;
 std::atomic<int> readPos{0};
 
 Parser::Parser(const std::string& _dp) : directoryPath(_dp) {
-        auto start = std::chrono::system_clock::now();
+      //  auto start = std::chrono::system_clock::now();
+        std::cout << "Parsing data..." << std::endl;
         ParseData();
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end - start;
-        std::cout << elapsed_seconds.count() << std::endl;
+      //  auto end = std::chrono::system_clock::now();
+      //  std::chrono::duration<double> elapsed_seconds = end - start;
+      //  std::cout << elapsed_seconds.count() << std::endl;
+        std::cout << "Writing Results..." << std::endl;
         writeResults();
 };
 
@@ -45,9 +47,9 @@ void Parser::getLines(std::vector<std::string>& filesToParse, size_t vecSize) {
                         readPos++;
                 }
                 const char* buffer = mmap.data();
+                // Buffer so we can use std::getline()
                 std::stringstream ss;
                 ss << buffer;
-
                 std::vector<int> placeholder;
 
                 std::vector<std::string> split;
@@ -56,30 +58,27 @@ void Parser::getLines(std::vector<std::string>& filesToParse, size_t vecSize) {
                 // skip header.
                 std::getline(ss, line_dummie);
 
+                // Get actual data
                 std::getline(ss, line_dummie);
                 boost::split(split, line_dummie, boost::is_any_of(","));
 
+                // Initialize the vector
                 for(int i = 1; i < split.size(); ++i){
-                  try{
-                  placeholder.push_back(boost::lexical_cast<int>(split.at(i)));
-                  }catch(std::exception &e) {
-                    placeholder.push_back(0);
-                  }
+                  placeholder.push_back(boost::lexical_cast<int>(boost::trim_copy(split.at(i))));
                 }
 
+                // Add upp all the AU
                 for (std::string line; std::getline(ss, line);) {
                         boost::split(split, line, boost::is_any_of(","));
                         for(int i = 1; i < split.size(); ++i){
-                          try{
-                          placeholder[i] += boost::lexical_cast<int>(split.at(i));
-                          } catch(std::exception &e) {
-                              placeholder[i] += 0;
-                          }
+                          placeholder[i - 1] += boost::lexical_cast<int>(boost::trim_copy(split.at(i)));
                         }
                 }
                 mmap.close();
                 {
+                        // lock access from other threads
                         std::lock_guard<std::mutex> lock(vectorLock);
+                        // Add summary of the AU's of a subject to the vector
                         totalAU.push_back(std::pair<std::string,std::vector<int>>(filename,placeholder));
                 }
         }
@@ -95,4 +94,5 @@ void Parser::writeResults()
       }
       file << '\n';
     }
+    file.close();
 }

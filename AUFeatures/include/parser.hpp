@@ -6,6 +6,7 @@
 #include <boost/filesystem.hpp>
 #include <experimental/string_view>
 #include "boost/lexical_cast.hpp"
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <iostream>
