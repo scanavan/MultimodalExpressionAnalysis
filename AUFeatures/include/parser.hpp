@@ -20,12 +20,15 @@ using namespace std::experimental;
 using namespace boost::filesystem;
 
 class Parser {
-       private:
          std::vector<std::pair<std::string,std::vector<int>>> totalAU;
+         std::vector<std::vector<std::string>> framesFileName;
         const std::string& directoryPath;
         void ParseData();
         void writeResults();
+        void writeFrameFiles();
+        void parseFrames(std::vector<std::string>&, size_t);
         void getLines(std::vector<std::string>&, size_t);
+
 
        public:
         Parser(const std::string&);
