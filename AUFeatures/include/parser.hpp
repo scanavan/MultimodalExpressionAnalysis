@@ -32,6 +32,9 @@ class Parser {
           void parseFrames(std::vector<std::string>&, size_t);
           void getLines(std::vector<std::string>&, size_t);
           void MapAUto3D(std::vector<std::string>&, size_t);
+          void randomSampling(std::string);
+          void SubjectsInARFF(ifstream&, std::pair<int,std::vector<std::string>>&);
+          void fillDataContainer(ifstream&, std::vector<std::string>&);
 
 
        public:

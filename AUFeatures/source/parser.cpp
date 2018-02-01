@@ -5,13 +5,11 @@ std::atomic<int> readPos{0};
 
 Parser::Parser(const std::string& _dp) : directoryPath(_dp) {
       //  auto start = std::chrono::system_clock::now();
-        std::cout << "Parsing data..." << std::endl;
-        ParseData();
+      //  ParseData();
       //  auto end = std::chrono::system_clock::now();
       //  std::chrono::duration<double> elapsed_seconds = end - start;
       //  std::cout << elapsed_seconds.count() << std::endl;
-        std::cout << "Writing Results..." << std::endl;
-        map3Data();
+        randomSampling("Data/BP4D.arff");
 };
 
 void Parser::ParseData() {
@@ -260,4 +258,86 @@ void Parser::map3Data()
         }
       }
     }
+}
+void Parser::randomSampling(std::string ARFF_file)
+{
+  ifstream file;
+  file.open(ARFF_file);
+  std::cout << "Parsing arff file..." << std::endl;
+  if(file.fail())
+  {
+    std::cout << "Could not open file: " << ARFF_file << std::endl;
+  }
+
+  // Create and populate placeholder and number of subjects in ARFF file.
+  std::pair<int,std::vector<std::string>>DataAndHeader;
+  SubjectsInARFF(file, DataAndHeader);
+  // Need to rewind back to the start of the file
+  file.clear();
+  file.seekg(0, std::ios::beg);
+  // Number of subjects per file
+  int number_of_subjects = DataAndHeader.first;
+  int subjectsPerFile = number_of_subjects / 6;
+  // Save header (needed in all files)
+  std::vector<std::string> header(DataAndHeader.second);
+  // Create and populate vector for the whole data.
+  std::vector<std::string> data;
+  fillDataContainer(file, data);
+  file.close();
+  // shuffle container for random sampling
+  std::random_shuffle(data.begin(), data.end());
+  std::string database_name = "BP4D";
+  std::string outputFileName;
+
+  std::cout << "Generating new files..." << std::endl;
+  // Generate new Files
+  for(int i = 0; i < 6; ++i)
+  {
+      outputFileName = database_name;
+      // Setup output file name
+      outputFileName.append(std::to_string(i));
+      outputFileName.append(".arff");
+      std::string path("Output/");
+      path.append(outputFileName);
+      ofstream file(path);
+
+      if(file.fail())
+      {
+        std::cout << "unable to open file: " << path <<std::endl;
+      }
+
+      // Write header
+      for(const auto& line : header)
+      {
+        file << line << "\n";
+      }
+      int starting_point = subjectsPerFile * i;
+      int ending_point = subjectsPerFile * (i + 1);
+      for(int j = starting_point; j < ending_point; ++j)
+      {
+        file << data[j] << "\n";
+      }
+      file.close();
+  }
+
+}
+void Parser::SubjectsInARFF(ifstream& file, std::pair<int,std::vector<std::string>>& header_container)
+{
+  int num_lines;
+  std::string line, split;
+
+  // Skip header lines while saving them.
+  for(int i = 0; i < 255; std::getline(file, line), header_container.second.push_back(line), ++i);
+
+  header_container.first = std::count(std::istreambuf_iterator<char>(file),
+                            std::istreambuf_iterator<char>(), '\n');
+}
+
+void Parser::fillDataContainer(ifstream& file, std::vector<std::string>& lines)
+{
+  std::string line;
+  // Skip header
+  for(int i = 0; i < 255; std::getline(file, line),++i);
+  // Parse data.
+  for (; std::getline(file, line); lines.push_back(line));
 }
