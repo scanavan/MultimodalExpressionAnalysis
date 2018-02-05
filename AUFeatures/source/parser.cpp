@@ -175,6 +175,7 @@ void Parser::parseFrames(std::vector<std::string>& filesToParse, size_t vecSize)
 
                 std::string subjectInfo = split[0];
                 std::string dummie_string = subjectInfo;
+
                 // skip header.
                 std::getline(ss, line_dummie);
 
@@ -265,9 +266,6 @@ void Parser::MapAUto3D(std::vector<std::string>& filesToParse, size_t vecSize) {
                 // skip header.
                 std::getline(ss, line_dummie);
 
-                // Get actual data
-                std::getline(ss, line_dummie);
-
                 // Loops through everyline in an AU subject file (every frame)
                 for (std::string line; std::getline(ss, line);) {
                         boost::split(split, line, boost::is_any_of(","));
@@ -288,7 +286,7 @@ void Parser::MapAUto3D(std::vector<std::string>& filesToParse, size_t vecSize) {
                         // Initialize AU struct with full path of the file it maps to in BND data.
                         AU AU_at_frame(dummie_filePath.append(dummie_string));
 
-                        // Add all AU's to struct
+                        // Add all AU's to struct (skips frame since we already know)
                         for(int i = 1; i < split.size(); ++i){
                           AU_at_frame.action_values.push_back(boost::trim_copy(split.at(i)));
                         }
