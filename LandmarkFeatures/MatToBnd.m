@@ -2,7 +2,7 @@ function MatToBnd(d)
     %get contents
     directory = dir(d);
     index=1;
-    for i = 4:size(directory,1)
+    for i = 3:size(directory,1)
         %get file name and print to screen for updating while running
         filePath = strcat(d, '/', directory(i).name)
         %load mat file
