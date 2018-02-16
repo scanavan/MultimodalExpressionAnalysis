@@ -16,7 +16,7 @@
 #include <thread>
 #include <vector>
 #include "AU.hpp"
-
+#include "ARFFLine.hpp"
 using namespace std::experimental;
 using namespace boost::filesystem;
 
@@ -25,28 +25,31 @@ class Parser {
           std::vector<std::pair<std::string,std::vector<int>>> totalAU;
           std::vector<std::vector<AU>> filenameAndAus;
           std::vector<std::vector<std::string>> framesFileName;
-          const std::string& directoryPath;
-          // Thread initialization and source file allocation function.
+          std::vector<ARFFLine> dataARFF;
+          const std::string& sourceDirectoryPath;
 
-          void ParseData();
-          // Output results functions
-          void writeSumResults();
-          void writeFrameFiles();
-          void writeMappedAUtoBND();
+          // Thread initialization and source file allocation function.
+          void ParseData( std::function<void(Parser *, std::vector<std::string>&, size_t)>, std::function<void(Parser *)> );
 
           // Parsing functions
-          void parseFrames(std::vector<std::string>&, size_t);
-          void getSumAus(std::vector<std::string>&, size_t);
           void MapAUto3D(std::vector<std::string>&, size_t);
+          void create_subsets(std::vector<std::string>&, size_t);
+          void getALLdata(std::vector<std::string>&, size_t);
 
-          // ICIP functions
-          void randomSampling(std::string);
-          void SubjectsInARFF(ifstream&, std::pair<int,std::vector<std::string>>&);
-          void fillDataContainer(ifstream&, std::vector<std::string>&);
+          // Output results functions
+          void writeMappedAUtoBND();
+          void writeNumberFramesPerExpression();
+          void writeARFF_ALL_BND_AU();
+          void writeARFF_ALL_BND();
+          void writeARFF_Header(ofstream&,bool, bool, bool, std::string);
+          void writeARFF_ALL_AU();
+          void writeARFF_Separete_Emotions();
+          void write_separete(bool, bool,ofstream&, std::string&, std::vector<ARFFLine>&);
+          void validate_ARFF_FILES();
 
 
        public:
-        Parser(const std::string&);
+        Parser( std::string, std::string);
 };
 
 #endif

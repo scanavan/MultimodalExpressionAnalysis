@@ -11,6 +11,11 @@ struct AU {
   std::string frame;
 
   AU( std::string fp) : fullPath(fp) {};
+  AU()
+  {
+    // number of AUs
+    action_values.resize(0);
+  }
 
   friend std::ostream& operator <<(std::ostream& os, const AU& object)
   {
