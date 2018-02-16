@@ -1,0 +1,21 @@
+T1 has 53084 frames.
+T2 has 0 frames.
+T3 has 0 frames.
+T4 has 0 frames.
+T5 has 0 frames.
+T6 has 53495 frames.
+T7 has 37607 frames.
+T8 has 53282 frames.
+
+Whole subset folder has 197468 frames.
+
+Frame list has 53084 frames for T1.
+Frame list has 0 frames for T2.
+Frame list has 0 frames for T3.
+Frame list has 0 frames for T4.
+Frame list has 0 frames for T5.
+Frame list has 53495 frames for T6.
+Frame list has 37607 frames for T7.
+Frame list has 53282 frames for T8.
+
+Total number of frames in frame list is 197468

@@ -1,0 +1,42 @@
+@relation 'multimodalExpression'
+
+@attribute AU1 numeric
+@attribute AU2 numeric
+@attribute AU4 numeric
+@attribute AU5 numeric
+@attribute AU6 numeric
+@attribute AU7 numeric
+@attribute AU9 numeric
+@attribute AU10 numeric
+@attribute AU11 numeric
+@attribute AU12 numeric
+@attribute AU13 numeric
+@attribute AU14 numeric
+@attribute AU15 numeric
+@attribute AU16 numeric
+@attribute AU17 numeric
+@attribute AU18 numeric
+@attribute AU19 numeric
+@attribute AU20 numeric
+@attribute AU22 numeric
+@attribute AU23 numeric
+@attribute AU24 numeric
+@attribute AU27 numeric
+@attribute AU28 numeric
+@attribute AU29 numeric
+@attribute AU30 numeric
+@attribute AU31 numeric
+@attribute AU32 numeric
+@attribute AU33 numeric
+@attribute AU34 numeric
+@attribute AU35 numeric
+@attribute AU36 numeric
+@attribute AU37 numeric
+@attribute AU38 numeric
+@attribute AU39 numeric
+@attribute AU99 numeric
+@attribute class {T1}
+
+@data
+
+0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,T1
