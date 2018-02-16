@@ -35,6 +35,8 @@ class Parser {
           void MapAUto3D(std::vector<std::string>&, size_t);
           void create_subsets(std::vector<std::string>&, size_t);
           void getALLdata(std::vector<std::string>&, size_t);
+          void cleanEmptyFiles();
+          void parseFrames(std::vector<std::string>&, size_t);
 
           // Output results functions
           void writeMappedAUtoBND();
@@ -46,6 +48,7 @@ class Parser {
           void writeARFF_Separete_Emotions();
           void write_separete(bool, bool,ofstream&, std::string&, std::vector<ARFFLine>&);
           void validate_ARFF_FILES();
+          void writeFrameList();
 
 
        public:

@@ -4,16 +4,7 @@ std::mutex vectorLock;
 std::atomic<int> readPos{0};
 
 // ------------------------------------------------------------------------------------------------------------------------
-/*
-  ~~~~ FUNCTION READ ME ~~~~
-  Parser class constructor, it sets the data source path and calls the functions we want to execute
 
-  Must always contain a call to ParseData first (if ECCV work) and then the related writer function
-  (will change this to be part of writer class)
-
-  For ICIP, only the randomSampling() call is needed.
-
-*/
 Parser::Parser(std::string _sdp, std::string request) : sourceDirectoryPath(_sdp) {
 
       if (request == "mapauto3d") {
@@ -24,25 +15,18 @@ Parser::Parser(std::string _sdp, std::string request) : sourceDirectoryPath(_sdp
       } else if(request == "make_arffs")
       {
         ParseData(&Parser::getALLdata, &Parser::writeARFF_ALL_BND_AU);
+      } else if(request == "clean_empty")
+      {
+        cleanEmptyFiles();
+      }
+      else if(request == "make_frame_list")
+      {
+        ParseData(&Parser::parseFrames, &Parser::writeFrameList);
       }
 
 };
 
 // ------------------------------------------------------------------------------------------------------------------------
-/*
-  ~~~~ FUNCTION READ ME ~~~~
-  ParseData function actually parses the data, this is done by initializing all the threads in a vector,
-  the function takes the address of a function which references the function that all the threads will execute.
-
-  Example:
-  std::thread(&Parser::MapAUto3D, this, std::ref(files_to_parse),files_to_parse.size())));
-  where MapAUto3D is the function to execute.
-
-  Data source path is defined by the constructor in main.cpp
-
-  Note: This function initializes a vector that contains all the files to read (files_to_parse).
-*/
-
 void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, size_t)> func_parser, std::function<void(Parser *)> func_writer) {
 
         std::vector<std::thread> threads;
@@ -67,18 +51,6 @@ void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, s
 };
 
 // ------------------------------------------------------------------------------------------------------------------------
-/*
-~~~~ FUNCTION READ ME ~~~~
-MapAUto3D function takes care of creating a vector that contains all the AU's for a given subject file.
-Each member of the vector is an AU object, every AU object corraletes to a given frame in that subject file,
-this object also has the filename of the BND file it maps to.
-
-The results of this parsing are stored in: filenameAndAus vector.
-
-The results of this function must be wrriten with:
-  writeMappedAUtoBND()
-*/
-
 void Parser::MapAUto3D(std::vector<std::string>& filesToParse, size_t vecSize) {
         while (readPos < vecSize) {
               std::string filename;
@@ -182,6 +154,101 @@ void Parser::writeMappedAUtoBND()
     std::cout << std::endl;
 }
 // ------------------------------------------------------------------------------------------------------------------------
+
+void Parser::parseFrames(std::vector<std::string>& filesToParse, size_t vecSize) {
+        while (readPos < vecSize) {
+              std::string filename;
+                boost::iostreams::mapped_file_source mmap;
+                {
+                        std::lock_guard<std::mutex> lock(vectorLock);
+                        if (readPos < vecSize) {
+                                mmap = boost::iostreams::mapped_file_source(
+                                    filesToParse[readPos]);
+                                  filename = filesToParse[readPos];
+                        } else {
+                                break;
+                        }
+                        readPos++;
+                }
+                const char* buffer = mmap.data();
+                // Buffer so we can use std::getline()
+                std::stringstream ss;
+                ss << buffer;
+
+                // vector that contains all the frames for file/subject
+                std::vector<std::string> frames;
+
+                // Used to parse the csv file
+                std::vector<std::string> split;
+                std::string line_dummie;
+
+                // we need to get the subject from Data/AUCoding/AU_OCC/M016_T7.csv
+                boost::split(split, filename, boost::is_any_of("/"));
+                // we need to get the subject from:M016_T7.csv
+                boost::split(split, split[3], boost::is_any_of("."));
+
+                std::string subjectInfo = split[0];
+                std::string dummie_string = subjectInfo;
+
+                // skip header.
+                std::getline(ss, line_dummie);
+
+                // Parse out frame number
+                for (std::string line; std::getline(ss, line);) {
+                        boost::split(split, line, boost::is_any_of(","));
+                        dummie_string.append("_");
+                        int frame_number = boost::lexical_cast<int>(split.at(0));
+
+                        // Deals with the fact that files are format of _0001.bnd, this part builds the right name for the BND files
+                        if(frame_number < 10){
+                          dummie_string.append("000");
+                        } else if(frame_number < 100){
+                          dummie_string.append("00");
+                        } else if(frame_number < 1000){
+                          dummie_string.append("0");
+                        }
+                        dummie_string.append(split.at(0));
+                        dummie_string.append(".bndplus");
+                        // Pushes name of the possible target file as M016_T7_XXXX.bndplus where XXXX is the frame number.
+                        frames.push_back(boost::trim_copy(dummie_string));
+                        dummie_string = subjectInfo;
+
+                }
+                mmap.close();
+                {
+                        // lock access from other threads
+                        std::lock_guard<std::mutex> lock(vectorLock);
+                        // Add proper mapped frame name.
+                        framesFileName.push_back(frames);
+                }
+        }
+};
+
+void Parser::writeFrameList()
+{
+    ofstream file;
+    file.open("Output/allFramesList.txt");
+    int total_number = 0;
+    int total_matched = 0;
+    for(int i = 0; i < framesFileName.size(); ++i){
+      total_number += framesFileName[i].size();
+      for(int j = 0; j < framesFileName[i].size(); ++j ){
+        std::string path_to_BND = "Data/BP4D+/3DFeatures/BND/DataSubset/";
+        std::string filename = framesFileName[i][j];
+        path_to_BND.append(filename);
+        if(boost::filesystem::exists(path_to_BND))
+        {
+          file << framesFileName[i][j] << '\n';
+          ++total_matched;
+        }
+      }
+    }
+
+    file << "Total number of files attempted to match (from AU): " << total_number << std::endl;
+    file << "Total number of files matched (BND vs AU): " << total_matched << std::endl;
+    file.close();
+};
+// ------------------------------------------------------------------------------------------------------------------------
 void Parser::create_subsets(std::vector<std::string>& filesToParse, size_t vecSize) {
         while (readPos < vecSize) {
               std::string filename;
@@ -236,7 +303,7 @@ void Parser::writeNumberFramesPerExpression()
 
   // Count how many files we should have from frame list.
   std::ifstream frame_list_file;
-  frame_list_file.open("Output/allFrameFiles.txt");
+  frame_list_file.open("Output/allFramesList.txt");
   std::vector<std::string> split;
   int counts[8] = {0};
   for(std::string line; std::getline(frame_list_file, line);)
@@ -263,6 +330,28 @@ void Parser::writeNumberFramesPerExpression()
   }
   file << "\nTotal number of frames in frame list is " << total << '\n';
   file.close();
+}
+// ------------------------------------------------------------------------------------------------------------------------
+
+void Parser::cleanEmptyFiles()
+{
+  std::vector<std::string> deletedfiles;
+  ofstream outputfile("Output/deletedFrames.txt");
+
+  int deleted = 0;
+  for (auto& f : directory_iterator(sourceDirectoryPath)) {
+          std::string filename = f.path().string();
+
+          // check if file is Empty
+          if(is_empty(filename))
+          {
+            outputfile << filename << "\n";
+            ++deleted;
+            std::remove(filename.c_str());
+          }
+  }
+  outputfile << "Deleted " << deleted << " files.\n";
+  outputfile.close();
 }
 // ------------------------------------------------------------------------------------------------------------------------
 
@@ -301,11 +390,6 @@ void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) 
                         std::vector<std::string> split;
                         std::getline(ss, line);
                         boost::split(split, line, boost::is_any_of(","));
-                        if(split.size() < 3)
-                        {
-                          std::cout << "Empty file: " << filename << std::endl;
-
-                        }
                         placeholder.x_axis.push_back(split.at(0));
                         placeholder.y_axis.push_back(split.at(1));
                         placeholder.z_axis.push_back(split.at(2));
@@ -331,6 +415,7 @@ void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) 
 };
 void Parser::writeARFF_ALL_BND_AU()
 {
+  std::cout << "Writing ARFF files...\n";
   ofstream outputfile;
   outputfile.open("Output/ARFF/ALL_BND_AU.arff");
   writeARFF_Header(outputfile,true,true, true ,"");
