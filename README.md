@@ -15,6 +15,10 @@ There are 5 available functions:
 3) make_arffs
 4) clean_empty
 5) make_frame_list
+6) execute_arffs
+7) move_origin
+8) map_phy
+9) make_arffs
 
 1 ~ Will separete the whole dataset at Data/BP4D+/3DFeatures/BND/DataSubset/ into smaller datasets that correspond to each of the expressions. The results will be stored in Output/Subsets/DataSubset_TX/. Therefore, the **[Full source data path]** for this function must be where the 3D data is located. This function will also create in the output directory the file "Counts.txt" which is use for validation and analysis 
 
@@ -28,3 +32,14 @@ At the moment it supports: BND only ARFF files (times 1 for each emotion), BND +
 5~ Makes "allframeslist.txt" in the output directory. The text file contains all the valid frames for parsing. The function first generates all possible frame file names from the AU data folder. Therefore, the **[Full source data path]** must be where the AU data is located. The function also checks that the generated file actually exists. 
 
 **NOTE:** Please executed clean_empty command before attempting other commands (only required once of course) as empty files will break some functionalities. 
+
+6) Makes arff_executer.bat which contains all commands to execute and save the arff files previously made. **[Full source data path]** must be path to the arff files: Output/ARFF/ and results will be saved to Output/script_results/
+
+7) Moves all BND data to the origin using the average of the file as offset.  **[Full source data path]** must be path to original data (without BND or physiological) and will put outputs to Data/BP4D+/3DFeatures/BND/DataSubsetOrigin
+
+8) Maps Physilogical data to Data subset that has AUs and BNDs.  **[Full source data path]** to datasaet containing both:  Data/BP4D+/3DFeatures/BND/DataSubsetOrigin
+
+**NOTE:** please execute this function after mapping the AU.
+
+9) makes all possible ARFF files (whole data and subsets per emotion). **[Full source data path]** must be Data/BP4D+/3DFeatures/BND/DataSubsetOrigin (Data that contains all 3 types of information) outputs go to /Output/ARFF
+
