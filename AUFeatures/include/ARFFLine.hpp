@@ -11,5 +11,6 @@
     std::vector<std::string> x_axis;
     std::vector<std::string> y_axis;
     std::vector<std::string> z_axis;
+    std::vector<std::string> physio_data;
   };
 #endif

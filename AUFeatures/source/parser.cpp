@@ -14,7 +14,7 @@ Parser::Parser(std::string _sdp, std::string request) : sourceDirectoryPath(_sdp
         ParseData(&Parser::create_subsets, &Parser::writeNumberFramesPerExpression);
       } else if(request == "make_arffs")
       {
-        ParseData(&Parser::getALLdata, &Parser::writeARFF_ALL_BND_AU);
+        ParseData(&Parser::getALLdata, &Parser::writeARFF_ALL);
       } else if(request == "clean_empty")
       {
         cleanEmptyFiles();
@@ -22,10 +22,18 @@ Parser::Parser(std::string _sdp, std::string request) : sourceDirectoryPath(_sdp
       else if(request == "make_frame_list")
       {
         ParseData(&Parser::parseFrames, &Parser::writeFrameList);
+      } else if(request == "move_origin")
+      {
+        ParseData(&Parser::moveBNDtoOrigin);
+      } else if(request == "map_phy")
+      {
+        ParseData(&Parser::mapPhyToBND);
       }
-
+      else if(request == "execute_arffs")
+      {
+        writeARFFExecuter();
+      }
 };
-
 // ------------------------------------------------------------------------------------------------------------------------
 void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, size_t)> func_parser, std::function<void(Parser *)> func_writer) {
 
@@ -36,7 +44,7 @@ void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, s
         for (auto& f : directory_iterator(sourceDirectoryPath)) {
                 files_to_parse.push_back(f.path().string());
         }
-        std::cout << "Running threahs...\r" << std::flush;
+        std::cout << "Running threads...\r" << std::flush;
 
         for (size_t i = 0; i < std::thread::hardware_concurrency(); ++i) {
                 // The function that we pass to parser is the only thing that needs to be changed depending on which one we want to execute.
@@ -48,6 +56,28 @@ void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, s
                 t.join();
         }
         func_writer(this);
+};
+// ------------------------------------------------------------------------------------------------------------------------
+void Parser::ParseData(std::function<void(Parser *, std::vector<std::string>&, size_t)> func_parser) {
+
+        std::vector<std::thread> threads;
+        std::vector<std::string> files_to_parse;
+
+        // directoryPath variable is the path to the source directory of data. This variable gets initilized in the parser constructor.
+        for (auto& f : directory_iterator(sourceDirectoryPath)) {
+                files_to_parse.push_back(f.path().string());
+        }
+        std::cout << "Running threads...\r" << std::flush;
+
+        for (size_t i = 0; i < std::thread::hardware_concurrency(); ++i) {
+                // The function that we pass to parser is the only thing that needs to be changed depending on which one we want to execute.
+                threads.push_back(std::move(std::thread(func_parser, this,
+                                                        std::ref(files_to_parse),
+                                                        files_to_parse.size())));
+         }
+        for (auto& t : threads) {
+                t.join();
+        }
 };
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -75,7 +105,7 @@ void Parser::MapAUto3D(std::vector<std::string>& filesToParse, size_t vecSize) {
                 std::vector<AU> placeholder;
 
                 // Path to 3D Folder, this might need to be changed.
-                std::string path_to_3D_Data = "Data/BP4D+/3DFeatures/BND/DataSubset/";
+                std::string path_to_3D_Data = "Data/BP4D+/3DFeatures/BND/DataSubsetOrigin/";
 
                 std::vector<std::string> split;
                 std::string line_dummie;
@@ -116,7 +146,15 @@ void Parser::MapAUto3D(std::vector<std::string>& filesToParse, size_t vecSize) {
 
                         // Add all AU's to struct (skips frame since we already know)
                         for(int i = 1; i < split.size(); ++i){
-                          AU_at_frame.action_values.push_back(boost::trim_copy(split.at(i)));
+                          std::string au = boost::trim_copy(split.at(i));
+                          int test = boost::lexical_cast<int>(au);
+
+                          if(test != 0 && test !=1)
+                          {
+                              au = "0";
+                          }
+
+                          AU_at_frame.action_values.push_back(au);
                         }
                         // We add the Aus for the given frame to the vector.
                         placeholder.push_back(AU_at_frame);
@@ -354,7 +392,120 @@ void Parser::cleanEmptyFiles()
   outputfile.close();
 }
 // ------------------------------------------------------------------------------------------------------------------------
+void Parser::moveBNDtoOrigin(std::vector<std::string>& filesToParse, size_t vecSize) {
+        while (readPos < vecSize) {
+              std::string filename;
+                boost::iostreams::mapped_file_source mmap;
+                {
+                        std::lock_guard<std::mutex> lock(vectorLock);
+                        if (readPos < vecSize) {
+                                mmap = boost::iostreams::mapped_file_source(
+                                    filesToParse[readPos]);
+                                  filename = filesToParse[readPos];
+                        } else {
+                                break;
+                        }
+                        readPos++;
+                }
+                const char* buffer = mmap.data();
 
+                std::stringstream ss;
+                ss << buffer;
+
+                // Data/BP4D+/3DFeatures/BND/DataSubset/FXXX_TX_XXXX.bndpluss
+                std::string destinationFolder = "Data/BP4D+/3DFeatures/BND/DataSubsetOrigin/";
+
+                //get name of destination file.
+                std::vector<std::string> split;
+                boost::split(split, filename, boost::is_any_of("/"));
+                std::string file = split[5];
+
+                // Dummies for lazy string appending lol.
+                std::string path_to_copy = destinationFolder + file;
+
+                std::vector<double> x_axis,y_axis,z_axis;
+                int runningSumX = 0;
+                int runningSumY = 0;
+                int runningSumZ = 0;
+
+                // Loops through everyline in the BND file to get the 83 landmarks
+                for (int landmark = 0; landmark < 83; ++landmark) {
+                        std::string line;
+                        std::vector<std::string> split;
+                        std::getline(ss, line);
+                        boost::split(split, line, boost::is_any_of(","));
+                        x_axis.push_back(boost::lexical_cast<double>(boost::trim_copy(split.at(0))));
+                        y_axis.push_back(boost::lexical_cast<double>(boost::trim_copy(split.at(1))));
+                        z_axis.push_back(boost::lexical_cast<double>(boost::trim_copy(split.at(2))));
+                        runningSumX += x_axis[landmark];
+                        runningSumY += y_axis[landmark];
+                        runningSumZ += z_axis[landmark];
+                }
+                mmap.close();
+
+                ofstream outputfile(path_to_copy);
+                for (int landmark = 0; landmark < 83; ++landmark) {
+                  double originx = x_axis[landmark] - static_cast<double>(runningSumX/83);
+                  double originy = y_axis[landmark] - static_cast<double>(runningSumY/83);
+                  double originz = y_axis[landmark] - static_cast<double>(runningSumZ/83);
+                  outputfile << originx << "," << originy << "," << originz << "\n";
+                }
+                outputfile.close();
+              }
+}
+// ------------------------------------------------------------------------------------------------------------------------
+void Parser::mapPhyToBND(std::vector<std::string>& filesToParse, size_t vecSize) {
+  while (readPos < vecSize) {
+        std::string filename;
+          boost::iostreams::mapped_file_source mmap;
+          {
+                  std::lock_guard<std::mutex> lock(vectorLock);
+                  if (readPos < vecSize) {
+                          mmap = boost::iostreams::mapped_file_source(
+                              filesToParse[readPos]);
+                            filename = filesToParse[readPos];
+                  } else {
+                          break;
+                  }
+                  readPos++;
+          }
+          const char* buffer = mmap.data();
+
+          std::stringstream ss;
+          ss << buffer;
+          // Data/BP4D+/3DFeatures/BND/DataSubset/FXXX_TX_XXXX.bndpluss
+          std::string destinationFolder = "Data/BP4D+/3DFeatures/BND/DataSubsetOrigin/";
+
+          //get name of destination file.
+          std::vector<std::string> split;
+          boost::split(split, filename, boost::is_any_of("/"));
+          std::string file = split[5];
+
+          // Dummies for lazy string appending lol.
+          std::string path_to_BND_AU = destinationFolder + file;
+
+          // Skip BND data
+          std::string line;
+          for (int landmark = 0; landmark < 83; ++landmark, std::getline(ss, line));
+          // Get Physiological
+          std::getline(ss, line);
+          boost::split(split, line, boost::is_any_of(","));
+
+          ofstream outputfile;
+          if(boost::filesystem::exists(path_to_BND_AU))
+          {
+            outputfile.open(path_to_BND_AU, std::ofstream::app);
+            for(int i = 0; i < split.size() -1 ; ++i)
+            {
+              outputfile << split.at(i) << ",";
+            }
+            outputfile << split.at(split.size()-1) << "\n";
+            outputfile.close();
+          }
+          mmap.close();
+        }
+}
+// ------------------------------------------------------------------------------------------------------------------------
 void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) {
         while (readPos < vecSize) {
               std::string filename;
@@ -394,6 +545,7 @@ void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) 
                         placeholder.y_axis.push_back(split.at(1));
                         placeholder.z_axis.push_back(split.at(2));
                 }
+
                  // Parse action values out of file, last line.
                 std::string line;
                 std::vector<std::string> split;
@@ -404,6 +556,16 @@ void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) 
                 {
                   placeholder.au_values.action_values.push_back(au);
                 }
+
+                // get Physiological data
+                std::getline(ss, line);
+                boost::split(split, line, boost::is_any_of(","));
+
+                for(const auto& phy : split)
+                {
+                  placeholder.physio_data.push_back(phy);
+                }
+
                 mmap.close();
                 {
                         // lock access from other threads
@@ -413,12 +575,86 @@ void Parser::getALLdata(std::vector<std::string>& filesToParse, size_t vecSize) 
                 }
         }
 };
+void Parser::writeARFF_ALL()
+{
+  ofstream outputfile;
+  std::cout << "Writing ARFF files...\n";
+  outputfile.open("Output/ARFF/ALL_BND_AU_PHY.arff");
+  writeARFF_Header(outputfile,true,true, true,true ,"");
+  for(int i = 0; i < dataARFF.size(); ++i)
+  {
+    for(int j = 0; j < 83; ++j)
+    {
+      outputfile << dataARFF[i].x_axis[j] << "," << dataARFF[i].y_axis[j] << "," << dataARFF[i].z_axis[j] << ",";
+    }
+
+    for(int k = 0; k < (dataARFF[i].au_values.action_values.size()); ++k)
+    {
+      outputfile << dataARFF[i].au_values.action_values[k] << ",";
+    }
+    for(int k = 0; k < (dataARFF[i].physio_data.size()); ++k)
+    {
+      outputfile << dataARFF[i].physio_data[k] << ",";
+    }
+    outputfile << dataARFF[i].emotion << '\n';
+  }
+  outputfile.close();
+  writeARFF_ALL_BND_AU();
+  writeARFF_ALL_BND_PHY();
+  writeARFF_ALL_AU_PHY();
+
+}
+void Parser::writeARFF_ALL_BND_PHY()
+{
+  ofstream outputfile;
+  outputfile.open("Output/ARFF/ALL_BND_PHY.arff");
+  writeARFF_Header(outputfile,true,false, true ,true,"");
+  // file BND AU PHY ALL_CLASSES EMOTION
+
+  for(int i = 0; i < dataARFF.size(); ++i)
+  {
+    for(int j = 0; j < 83; ++j)
+    {
+      outputfile << dataARFF[i].x_axis[j] << "," << dataARFF[i].y_axis[j] << "," << dataARFF[i].z_axis[j] << ",";
+    }
+
+    for(int k = 0; k < (dataARFF[i].physio_data.size()); ++k)
+    {
+      outputfile << dataARFF[i].physio_data[k] << ",";
+    }
+    outputfile << dataARFF[i].emotion << '\n';
+  }
+  outputfile.close();
+}
+void Parser::writeARFF_ALL_AU_PHY()
+{
+  ofstream outputfile;
+  outputfile.open("Output/ARFF/ALL_AU_PHY.arff");
+  writeARFF_Header(outputfile,false,true, true ,true,"");
+  // file BND AU PHY ALL_CLASSES EMOTION
+
+  for(int i = 0; i < dataARFF.size(); ++i)
+  {
+    for(int k = 0; k < (dataARFF[i].au_values.action_values.size()); ++k)
+    {
+      outputfile << dataARFF[i].au_values.action_values[k] << ",";
+    }
+
+    for(int k = 0; k < (dataARFF[i].physio_data.size()); ++k)
+    {
+      outputfile << dataARFF[i].physio_data[k] << ",";
+    }
+    outputfile << dataARFF[i].emotion << '\n';
+  }
+  outputfile.close();
+}
 void Parser::writeARFF_ALL_BND_AU()
 {
-  std::cout << "Writing ARFF files...\n";
   ofstream outputfile;
   outputfile.open("Output/ARFF/ALL_BND_AU.arff");
-  writeARFF_Header(outputfile,true,true, true ,"");
+  writeARFF_Header(outputfile,true,true, false,true ,"");
+  // file BND AU PHY ALL_CLASSES EMOTION
+
 
   for(int i = 0; i < dataARFF.size(); ++i)
   {
@@ -431,12 +667,12 @@ void Parser::writeARFF_ALL_BND_AU()
     {
       outputfile << dataARFF[i].au_values.action_values[k] << ",";
     }
-    // Physiological data needs to be added here.
     outputfile << dataARFF[i].emotion << '\n';
   }
   outputfile.close();
   writeARFF_ALL_BND();
   writeARFF_ALL_AU();
+  writeARFF_ALL_PHY();
   writeARFF_Separete_Emotions();
   validate_ARFF_FILES();
 }
@@ -444,8 +680,9 @@ void Parser::writeARFF_ALL_BND()
 {
   ofstream outputfile;
   outputfile.open("Output/ARFF/ALL_BND.arff");
+  writeARFF_Header(outputfile,true,false,false,true, "");
+  // file BND AU PHY ALL_CLASSES EMOTION
 
-  writeARFF_Header(outputfile,false,true,true, "");
   for(int i = 0; i < dataARFF.size(); ++i)
   {
     for(int j = 0; j < 83; ++j)
@@ -461,7 +698,9 @@ void Parser::writeARFF_ALL_AU()
   ofstream outputfile;
   outputfile.open("Output/ARFF/ALL_AU.arff");
 
-  writeARFF_Header(outputfile,true,false, true, "");
+  writeARFF_Header(outputfile,false,true,false, true, "");
+  // file BND AU PHY ALL_CLASSES EMOTION
+
   for(int i = 0; i < dataARFF.size(); ++i)
   {
     for(int k = 0; k < (dataARFF[i].au_values.action_values.size()); ++k)
@@ -472,9 +711,27 @@ void Parser::writeARFF_ALL_AU()
   }
   outputfile.close();
 }
+void Parser::writeARFF_ALL_PHY()
+{
+  ofstream outputfile;
+  outputfile.open("Output/ARFF/ALL_PHY.arff");
+
+  writeARFF_Header(outputfile,false,false,true, true, "");
+  // file BND AU PHY ALL_CLASSES EMOTION
+
+  for(int i = 0; i < dataARFF.size(); ++i)
+  {
+    for(int k = 0; k < (dataARFF[i].physio_data.size()); ++k)
+    {
+      outputfile << dataARFF[i].physio_data[k] << ",";
+    }
+    outputfile << dataARFF[i].emotion << '\n';
+  }
+  outputfile.close();
+}
 void Parser::writeARFF_Separete_Emotions()
 {
-  std::vector<std::string> classes {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"};
+  std::vector<std::string> classes {"T1", "T6", "T7", "T8"};
 
   std::vector<std::vector<ARFFLine>> placeholder(8);
   // separete emotions.
@@ -484,29 +741,58 @@ void Parser::writeARFF_Separete_Emotions()
     int index = boost::lexical_cast<int>(emotion[1]) - 1;
     placeholder[index].push_back(dataARFF[i]);
   }
-  // 3 types of arff
-  std::vector<std::string> types_arff {"BND_AU.arff", "BND.arff", "AU.arff"}; // can add more in the future
-
   // create arffs for every emotion.
   for(auto & emotion : classes)
   {
-
-    std::string filename = "Output/ARFF/" + emotion + "_" + types_arff[0];
+    std::string filename = "Output/ARFF/" + emotion + "_" + "BND_AU.arff";
     ofstream ofile(filename);
     int index = boost::lexical_cast<int>(emotion[1]) - 1;
-    write_separete(true, true, ofile, emotion, placeholder[index]);
-    filename = "Output/ARFF/" + emotion + "_" + types_arff[1];
+                  // BND AU PHY
+    write_separete(true, true,false ,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "BND.arff";
     ofile.open(filename);
-    write_separete(true, false,ofile, emotion, placeholder[index]);
-    filename = "Output/ARFF/" + emotion + "_" + types_arff[2];
+                  // BND AU PHY
+    write_separete(true, false, false,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "AU.arff";
     ofile.open(filename);
-    write_separete(false, true,ofile, emotion, placeholder[index]);
+                  // BND AU PHY
+    write_separete(false, true, false,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "BND_PHY.arff";
+    ofile.open(filename);
+                  // BND AU PHY
+    write_separete(true, false, true,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "AU_PHY.arff";
+    ofile.open(filename);
+                  // BND AU PHY
+    write_separete(false, true, true,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "PHY.arff";
+    ofile.open(filename);
+                  // BND AU PHY
+    write_separete(false, false, true,ofile, emotion, placeholder[index]);
+    ofile.close();
+
+    filename = "Output/ARFF/" + emotion + "_" + "BND_AU_PHY.arff";
+    ofile.open(filename);
+                  // BND AU PHY
+    write_separete(true, true, true,ofile, emotion, placeholder[index]);
+    ofile.close();
+
   }
 };
 
-void Parser::write_separete(bool BND, bool AU,ofstream& output_file, std::string& _emotion, std::vector<ARFFLine>& data_each_emotion)
+void Parser::write_separete(bool BND, bool AU,bool PHY,ofstream& output_file, std::string& _emotion, std::vector<ARFFLine>& data_each_emotion)
 {
-  writeARFF_Header(output_file,AU,BND, false, _emotion);
+  writeARFF_Header(output_file,BND,AU,PHY, false, _emotion);
 
   for(int i = 0; i < data_each_emotion.size(); ++i)
   {
@@ -524,12 +810,20 @@ void Parser::write_separete(bool BND, bool AU,ofstream& output_file, std::string
         output_file << data_each_emotion[i].au_values.action_values[k] << ",";
       }
     }
+    if(PHY)
+    {
+      for(int k = 0; k < (dataARFF[i].physio_data.size()); ++k)
+      {
+        output_file << dataARFF[i].physio_data[k] << ",";
+      }
+    }
     output_file << data_each_emotion[i].emotion << '\n';
   }
   output_file.close();
 };
 
-void Parser::writeARFF_Header(ofstream& file, bool AU, bool BND, bool all_classes, std::string emotion)
+
+void Parser::writeARFF_Header(ofstream& file, bool BND,bool AU, bool PHY, bool all_classes, std::string emotion)
 {
   file << "@relation 'multimodalExpression'\n\n";
   if(BND)
@@ -549,9 +843,17 @@ void Parser::writeARFF_Header(ofstream& file, bool AU, bool BND, bool all_classe
       file << "@attribute AU" << au_numers[j]<< " numeric\n";
     }
   }
+  if(PHY)
+  {
+    std::vector<std::string> phys {"BP_Dia_mmH", "BP_mmHG", "EDA_microsiemens", "LA_Mean_BP_mmHg", "LA_Systolic_BP_mmHg", "Pulse_Rate_BPM", "Resp_Volts", "Resperation_Rate_BPM" };
+    for(const auto& phy_value : phys)
+    {
+      file << "@attribute " << phy_value << " numeric\n";
+    }
+  }
   if(all_classes)
   {
-    file << "@attribute class {T1, T2, T3, T4, T5, T6, T7, T8}\n\n";
+    file << "@attribute class {T1, T6, T7, T8}\n\n";
   } else {
     file << "@attribute class {" + emotion + "}\n\n";
   }
@@ -596,4 +898,26 @@ void Parser::validate_ARFF_FILES()
   outputfile.close();
 
 }
+// ------------------------------------------------------------------------------------------------------------------------
+void Parser::writeARFFExecuter() {
+
+  for (auto& f : directory_iterator(sourceDirectoryPath)) {
+          // Output/ARFF/XXXX.arff
+          std::string path = f.path().string();
+          std::vector<std::string> split;
+
+          boost::split(split, path, boost::is_any_of("/"));
+          std::string arff_file = split[2];
+          boost::split(split, arff_file, boost::is_any_of("."));
+          std::string save_to = "Output/script_results/" + split[0] + "_RF_result.txt";
+          std::string save_to_info = "Output/script_results/" + split[0] + "_InfoGain_result.txt";
+          ofstream script;
+          script.open("Output/scripts/arff_executer.bat", std::ofstream::app);
+
+          script << "@java weka.classifiers.trees.RandomForest -t " << path << " > " << save_to << "\n";
+          script << "@java weka.attributeSelection.InfoGainAttributeEval -t " << path << " > " << save_to_info << "\n";
+
+
+  }
+};
 // ------------------------------------------------------------------------------------------------------------------------
