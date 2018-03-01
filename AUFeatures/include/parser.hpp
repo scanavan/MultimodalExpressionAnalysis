@@ -54,6 +54,9 @@ class Parser {
           void writeARFF_ALL_BND_PHY();
           void writeARFF_ALL_AU_PHY();
           void writeARFF_ALL_PHY();
+          void filterBP4D_plus();
+          void filterBP4D();
+          void writeARFFExecuter_masterfiles();
 
        public:
         Parser( std::string, std::string);

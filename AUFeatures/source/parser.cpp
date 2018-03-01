@@ -32,6 +32,15 @@ Parser::Parser(std::string _sdp, std::string request) : sourceDirectoryPath(_sdp
       else if(request == "execute_arffs")
       {
         writeARFFExecuter();
+      } else if(request == "clean_bp4d")
+      {
+        filterBP4D();
+      } else if(request == "clean_bp4d_plus")
+      {
+        filterBP4D_plus();
+      } else if(request == "make_masterfile_script")
+      {
+        writeARFFExecuter_masterfiles();
       }
 };
 // ------------------------------------------------------------------------------------------------------------------------
@@ -909,15 +918,224 @@ void Parser::writeARFFExecuter() {
           boost::split(split, path, boost::is_any_of("/"));
           std::string arff_file = split[2];
           boost::split(split, arff_file, boost::is_any_of("."));
-          std::string save_to = "Output/script_results/" + split[0] + "_RF_result.txt";
-          std::string save_to_info = "Output/script_results/" + split[0] + "_InfoGain_result.txt";
+          std::string type_of_arff = split[0];
+          boost::split(split, type_of_arff, boost::is_any_of("_"));
+
+          std::string save_to = "./Output/script_results/" + type_of_arff + "_RF_result.txt";
+          std::string save_to_info = "./Output/script_results/" + type_of_arff + "_PCA_ranker_result.txt";
           ofstream script;
-          script.open("Output/scripts/arff_executer.bat", std::ofstream::app);
+          script.open("./Output/scripts/arff_executer.bat", std::ofstream::app);
 
-          script << "@java weka.classifiers.trees.RandomForest -t " << path << " > " << save_to << "\n";
-          script << "@java weka.attributeSelection.InfoGainAttributeEval -t " << path << " > " << save_to_info << "\n";
+          if(split[0] == "ALL")
+          {
+            script << "@java weka.classifiers.trees.RandomForest -t " << path << " > " << save_to << "\n";
+            script << "@java weka.Run attributeSelection.PrincipalComponents -i " << path  << " -s \"weka.attributeSelection.Ranker -T -1.7976931348623157E308 -N -1\" > "<< save_to_info << "\n";
 
-
+          } else {
+            script << "@java weka.Run attributeSelection.PrincipalComponents -i " << path << " -s \"weka.attributeSelection.Ranker -T -1.7976931348623157E308 -N -1\" > "<< save_to_info << "\n";
+          }
   }
+};
+void Parser::writeARFFExecuter_masterfiles() {
+
+          ofstream script;
+          script.open("./Output/scripts/arff_executer_masterfiles.bat", std::ofstream::app);
+          std::vector<std::string> masterfiles{"BP4D_Filtered.arff", "BP4D+_Filtered.arff", "BU4DFE_Filtered.arff"};
+
+          for (auto& f : directory_iterator(sourceDirectoryPath)) {
+                  // Output/ARFF/XXXX.arff
+                  std::string path = f.path().string();
+
+                  std::vector<std::string> split;
+                  boost::split(split, path, boost::is_any_of("/"));
+                  std::string arff_file = split[2];
+                  boost::split(split, arff_file, boost::is_any_of("."));
+                  std::string type_of_arff = split[0];
+                  boost::split(split, type_of_arff, boost::is_any_of("_"));
+
+                  if(type_of_arff == masterfiles.at(0))
+                  {
+                    std::string save_to = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(1) + "_RF_result.txt";
+                    std::string save_to2 = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(2) + "_RF_result.txt";
+
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to << "\n";
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to2 << "\n";
+
+                  } else if(type_of_arff == masterfiles.at(1)){
+
+                    std::string save_to = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(0) + "_RF_result.txt";
+                    std::string save_to2 = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(2) + "_RF_result.txt";
+
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to << "\n";
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to2 << "\n";
+
+                  } else if(type_of_arff == masterfiles.at(2)){
+
+                    std::string save_to = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(0) + "_RF_result.txt";
+                    std::string save_to2 = "./Output/script_results/" + type_of_arff + "with_" + masterfiles.at(1) + "_RF_result.txt";
+
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to << "\n";
+                    script << "@java weka.classifiers.trees.RandomForest -t " << path << " -T > " << save_to2 << "\n";
+                  }
+          }
+};
+// ------------------------------------------------------------------------------------------------------------------------
+void Parser::filterBP4D() {
+
+    // input memory map
+    boost::iostreams::mapped_file_source mmap;
+    // path to BP4D
+    mmap = boost::iostreams::mapped_file_source(sourceDirectoryPath);
+    const char* buffer = mmap.data();
+    std::stringstream ss;
+    ss << buffer;
+
+    // output file
+    ofstream newBP4D("./Output/ARFF/BP4D_Filtered.arff");
+    for (std::string line; std::getline(ss, line);) {
+      std::vector<std::string> split;
+      boost::split(split, line, boost::is_any_of(" "));
+      if(split.at(1) != "class")
+      {
+        newBP4D << line << "\n";
+      } else {
+        newBP4D << "@attribute class {Happy,Sadness,Surprise,Fear,Anger,Disgust}\n\n";
+      }
+      if(line == "@data")
+      {
+        newBP4D << line << "\n\n";
+        break;
+      }
+    }
+
+    for (std::string line; std::getline(ss, line);) {
+      std::vector<std::string> split;
+      boost::split(split, line, boost::is_any_of(","));
+      std::string emotion = split.at(split.size() - 1) ;
+      if(emotion == "T1")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Happy\n";
+      } else if(emotion == "T2")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Sadness\n";
+      } else if(emotion == "T3")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Surprise\n";
+      } else if(emotion == "T5")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Fear\n";
+      } else if(emotion == "T7")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Anger\n";
+      } else if(emotion == "T8")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D << split.at(i) << ",";
+        }
+        newBP4D << "Disgust\n";
+      }
+    }
+    mmap.close();
+    newBP4D.close();
+};
+// ------------------------------------------------------------------------------------------------------------------------
+void Parser::filterBP4D_plus() {
+    // input memory map
+    boost::iostreams::mapped_file_source mmap;
+    // path to BP4D+
+    mmap = boost::iostreams::mapped_file_source(sourceDirectoryPath);
+    const char* buffer = mmap.data();
+    std::stringstream ss;
+    ss << buffer;
+
+    // output file
+    ofstream newBP4D_plus("./Output/ARFF/BP4D+_Filtered.arff");
+    for (std::string line; std::getline(ss, line);) {
+      std::vector<std::string> split;
+      boost::split(split, line, boost::is_any_of(" "));
+      if(split.at(1) != "class")
+      {
+        newBP4D_plus << line << "\n";
+      } else {
+        newBP4D_plus << "@attribute class {Happy,Sadness,Surprise,Fear,Anger,Disgust}\n\n";
+      }
+      if(line == "@data")
+      {
+        newBP4D_plus << line << "\n\n";
+        break;
+      }
+    }
+
+    for (std::string line; std::getline(ss, line);) {
+      std::vector<std::string> split;
+      boost::split(split, line, boost::is_any_of(","));
+      std::string emotion = split.at(split.size() - 1) ;
+      if(emotion == "T1")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Happy\n";
+      } else if(emotion == "T2" || emotion == "T4")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Surprise\n";
+      } else if(emotion == "T3")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Sadness\n";
+      } else if(emotion == "T7")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Fear\n";
+      } else if(emotion == "T9")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Anger\n";
+      }  else if(emotion == "T10")
+      {
+        for(int i = 0; i < split.size() - 1; ++i)
+        {
+          newBP4D_plus << split.at(i) << ",";
+        }
+        newBP4D_plus << "Disgust\n";
+      }
+    }
+    mmap.close();
+    newBP4D_plus.close();
 };
 // ------------------------------------------------------------------------------------------------------------------------
