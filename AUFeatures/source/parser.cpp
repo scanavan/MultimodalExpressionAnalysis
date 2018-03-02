@@ -993,13 +993,13 @@ void Parser::filterBP4D() {
     // output file
     ofstream newBP4D("../Output/ARFF/BP4D_Origin_Filtered.arff");
     for (std::string line; std::getline(ss, line);) {
+      line = boost::trim_copy(line);
       if(line.empty())
       {
         newBP4D << "\n";
       } else {
         std::vector<std::string> split;
         boost::split(split, line, boost::is_any_of(" "));
-
           if(line == "@data")
           {
             newBP4D << line << "\n\n";
@@ -1014,52 +1014,56 @@ void Parser::filterBP4D() {
   }
 
     for (std::string line; std::getline(ss, line);) {
-      std::vector<std::string> split;
-      boost::split(split, line, boost::is_any_of(","));
-      std::string emotion = split.at(split.size() - 1) ;
-      if(emotion == "T1")
+      line = boost::trim_copy(line);
+      if(!line.empty())
       {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
+          std::vector<std::string> split;
+          boost::split(split, line, boost::is_any_of(","));
+          std::string emotion = split.at(split.size() - 1) ;
+          if(emotion == "T1")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Happy\n";
+          } else if(emotion == "T2")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Sadness\n";
+          } else if(emotion == "T3")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Surprise\n";
+          } else if(emotion == "T5")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Fear\n";
+          } else if(emotion == "T7")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Anger\n";
+          } else if(emotion == "T8")
+          {
+            for(int i = 0; i < split.size() - 1; ++i)
+            {
+              newBP4D << split.at(i) << ",";
+            }
+            newBP4D << "Disgust\n";
+          }
         }
-        newBP4D << "Happy\n";
-      } else if(emotion == "T2")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
-        }
-        newBP4D << "Sadness\n";
-      } else if(emotion == "T3")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
-        }
-        newBP4D << "Surprise\n";
-      } else if(emotion == "T5")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
-        }
-        newBP4D << "Fear\n";
-      } else if(emotion == "T7")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
-        }
-        newBP4D << "Anger\n";
-      } else if(emotion == "T8")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
-        {
-          newBP4D << split.at(i) << ",";
-        }
-        newBP4D << "Disgust\n";
-      }
     }
     mmap.close();
     newBP4D.close();
@@ -1077,6 +1081,7 @@ void Parser::filterBP4D_plus() {
     // output file
     ofstream newBP4D_plus("../Output/ARFF/BP4Dplus_Origin_Filtered.arff");
     for (std::string line; std::getline(ss, line);) {
+      line = boost::trim_copy(line);
       if(line.empty())
       {
         newBP4D_plus << "\n";
@@ -1098,51 +1103,56 @@ void Parser::filterBP4D_plus() {
   }
 
     for (std::string line; std::getline(ss, line);) {
-      std::vector<std::string> split;
-      boost::split(split, line, boost::is_any_of(","));
-      std::string emotion = split.at(split.size() - 1) ;
-      if(emotion == "T1")
+
+      line = boost::trim_copy(line);
+      if(!line.empty())
       {
-        for(int i = 0; i < split.size() - 1; ++i)
+        std::vector<std::string> split;
+        boost::split(split, line, boost::is_any_of(","));
+        std::string emotion = split.at(split.size() - 1) ;
+        if(emotion == "T1")
         {
-          newBP4D_plus << split.at(i) << ",";
-        }
-        newBP4D_plus << "Happy\n";
-      } else if(emotion == "T2" || emotion == "T4")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Happy\n";
+        } else if(emotion == "T2" || emotion == "T4")
         {
-          newBP4D_plus << split.at(i) << ",";
-        }
-        newBP4D_plus << "Surprise\n";
-      } else if(emotion == "T3")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Surprise\n";
+        } else if(emotion == "T3")
         {
-          newBP4D_plus << split.at(i) << ",";
-        }
-        newBP4D_plus << "Sadness\n";
-      } else if(emotion == "T7")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Sadness\n";
+        } else if(emotion == "T7")
         {
-          newBP4D_plus << split.at(i) << ",";
-        }
-        newBP4D_plus << "Fear\n";
-      } else if(emotion == "T9")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Fear\n";
+        } else if(emotion == "T9")
         {
-          newBP4D_plus << split.at(i) << ",";
-        }
-        newBP4D_plus << "Anger\n";
-      }  else if(emotion == "T10")
-      {
-        for(int i = 0; i < split.size() - 1; ++i)
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Anger\n";
+        }  else if(emotion == "T10")
         {
-          newBP4D_plus << split.at(i) << ",";
+          for(int i = 0; i < split.size() - 1; ++i)
+          {
+            newBP4D_plus << split.at(i) << ",";
+          }
+          newBP4D_plus << "Disgust\n";
         }
-        newBP4D_plus << "Disgust\n";
       }
     }
     mmap.close();
