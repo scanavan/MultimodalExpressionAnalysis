@@ -981,7 +981,7 @@ void Parser::writeARFFExecuter_masterfiles() {
 };
 // ------------------------------------------------------------------------------------------------------------------------
 void Parser::filterBP4D() {
-
+	
     // input memory map
     boost::iostreams::mapped_file_source mmap;
     // path to BP4D
@@ -989,18 +989,19 @@ void Parser::filterBP4D() {
     const char* buffer = mmap.data();
     std::stringstream ss;
     ss << buffer;
-
     // output file
-    ofstream newBP4D("./Output/ARFF/BP4D_Filtered.arff");
+    ofstream newBP4D("../Output/ARFF/BP4D_Origin_Filtered.arff");
     for (std::string line; std::getline(ss, line);) {
       std::vector<std::string> split;
       boost::split(split, line, boost::is_any_of(" "));
-      if(split.at(1) != "class")
+      if(split.size() > 1 && split.at(1) != "class")
       {
-        newBP4D << line << "\n";
-      } else {
-        newBP4D << "@attribute class {Happy,Sadness,Surprise,Fear,Anger,Disgust}\n\n";
-      }
+        newBP4D << line;
+      } 
+	  else if (split.size() > 1 && split.at(1) == "class")
+	  {
+		  newBP4D << "@attribute class {Happy,Sadness,Surprise,Fear,Anger,Disgust}\n\n";
+	  }
       if(line == "@data")
       {
         newBP4D << line << "\n\n";
@@ -1070,7 +1071,7 @@ void Parser::filterBP4D_plus() {
     ss << buffer;
 
     // output file
-    ofstream newBP4D_plus("./Output/ARFF/BP4D+_Filtered.arff");
+    ofstream newBP4D_plus("./Output/ARFF/BP4D+_Origin_Filtered.arff");
     for (std::string line; std::getline(ss, line);) {
       std::vector<std::string> split;
       boost::split(split, line, boost::is_any_of(" "));
