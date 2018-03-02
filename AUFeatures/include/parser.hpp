@@ -1,5 +1,10 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
+
+#ifdef WIN32
+#define _HAS_AUTO_PTR_ETC 1
+#endif
+
 #include <atomic>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/filesystem.hpp>
